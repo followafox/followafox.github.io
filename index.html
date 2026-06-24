@@ -2,65 +2,187 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Random Entry Picker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random CSV Entry Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f4f9; }
-        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
-        button { margin-top: 20px; padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-        #display { font-size: 1.2rem; min-height: 50px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        .display-box {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+        }
+        .data-text {
+            font-size: 1.1rem;
+            color: #4a4a4a;
+            margin: 0;
+        }
+        .meta-info {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 15px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div id="display">Loading entries...</div>
-    <button onclick="pickRandom()">Show Random Entry</button>
+<div class="container">
+    <h1>Random Entry Generator</h1>
+    
+    <div class="display-box" id="displayBox">
+        <p class="data-text" style="color: #888;">Loading data from todayiam.csv...</p>
+    </div>
+
+    <button id="nextBtn" onclick="displayRandomEntry()" disabled>Generate New Entry</button>
+    <div class="meta-info" id="tracker">Remaining: 0/0</div>
 </div>
 
 <script>
-    let allEntries = [];
-    let history = [];
-    const API_URL = '/todayiam.csv';
+    let jsonData = [];
+    let availableIndices = [];
 
-    // 1. Fetch data from Google Sheet on load
-    async function fetchData() {
-        try {
-            const response = await fetch(API_URL);
-            allEntries = await response.json();
-            document.getElementById('display').innerText = "Ready!";
-        } catch (error) {
-            document.getElementById('display').innerText = "Error loading data.";
-        }
+    // Fetch and parse the external CSV file
+    function init() {
+        // Fetching "todayiam.csv" from the same directory
+        fetch('todayiam.csv')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Could not find todayiam.csv (Status: ${response.status})`);
+                }
+                return response.text();
+            })
+            .then(csvText => {
+                Papa.parse(csvText, {
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processData(results.data);
+                    },
+                    error: function(err) {
+                        showError("Error parsing the CSV file.");
+                    }
+                });
+            })
+            .catch(error => {
+                showError(error.message + "<br><small style='color:#be6d6d;'>Note: If opening the HTML directly from your file system, browsers block file fetching for security. Run a local development server or upload to a host to view.</small>");
+                console.error(error);
+            });
     }
 
-    // 2. The Logic
-    function pickRandom() {
-        if (allEntries.length === 0) return;
-
-        // Filter out items that are in the history
-        let availableEntries = allEntries.filter(entry => !history.includes(entry.rowId));
-
-        // Safety check: if sheet is small or history is full, clear history
-        if (availableEntries.length === 0) {
-            history = [];
-            availableEntries = allEntries;
-        }
-
-        // Select random
-        const randomIndex = Math.floor(Math.random() * availableEntries.length);
-        const selected = availableEntries[randomIndex];
-
-        // 3. Update History (keep only last 100)
-        history.push(selected.rowId);
-        if (history.length > 100) {
-            history.shift(); // Remove the oldest entry
-        }
-
-        // 4. Update UI (Assuming your sheet has a column named "Content")
-        document.getElementById('display').innerText = selected.Content || JSON.stringify(selected);
+    function showError(message) {
+        document.getElementById('displayBox').innerHTML = `<p class="data-text" style="color: red; font-size:0.95rem;">${message}</p>`;
     }
 
-    fetchData();
+    function processData(matrix) {
+        // If your CSV has headers, we start looping from index 1. 
+        // If your CSV has NO header row, change 'i = 1' to 'i = 0'.
+        for (let i = 1; i < matrix.length; i++) {
+            const row = matrix[i];
+            
+            // Check if row has enough columns (at least 4 columns to grab indices 1, 2, and 3)
+            if (row.length >= 4) {
+                jsonData.push({
+                    col2: row, // 2nd column
+                    col3: row, // 3rd column
+                    col4: row  // 4th column
+                });
+            }
+        }
+        
+        if (jsonData.length === 0) {
+            showError("No valid rows found in CSV. Make sure it has at least 4 columns.");
+            return;
+        }
+
+        resetPool();
+        document.getElementById('nextBtn').disabled = false;
+        displayRandomEntry();
+    }
+
+    // Resets the pool of available indices when all are used
+    function resetPool() {
+        availableIndices = Array.from({ length: jsonData.length }, (_, i) => i);
+    }
+
+    // Pick a random entry without repeating until the table is exhausted
+    function displayRandomEntry() {
+        if (jsonData.length === 0) return;
+
+        // If pool is empty, reset it to allow repeating the cycle
+        if (availableIndices.length === 0) {
+            alert("All entries shown! Resetting the pool.");
+            resetPool();
+        }
+
+        // Pick a random index from our remaining available indices pool
+        const poolIndex = Math.floor(Math.random() * availableIndices.length);
+        const dataIndex = availableIndices[poolIndex];
+
+        // Remove the chosen index from the available pool
+        availableIndices.splice(poolIndex, 1);
+
+        // Display the selected item's 2nd, 3rd, and 4th columns
+        const entry = jsonData[dataIndex];
+        const displayBox = document.getElementById('displayBox');
+        
+        displayBox.innerHTML = `
+            <p class="data-text"><strong>Column 2:</strong> ${entry.col2}</p>
+            <p class="data-text"><strong>Column 3:</strong> ${entry.col3}</p>
+            <p class="data-text"><strong>Column 4:</strong> ${entry.col4}</p>
+        `;
+
+        // Update the counter UI
+        document.getElementById('tracker').innerText = `Remaining in pool: ${availableIndices.length} / ${jsonData.length}`;
+    }
+
+    // Run on page load
+    window.onload = init;
 </script>
+
 </body>
 </html>
