@@ -23,6 +23,10 @@
     <h3>Result Output:</h3>
     <pre id="jsonOutput">// JSON data will stream here...</pre>
 
+    <div id="formattedOutput">
+        <p>results.Quotation</p>
+    </div>
+
     <script>
         let cachedRows = [];
         let availableIndices = [];
@@ -85,6 +89,8 @@
             // 6. Output formatted text to the screen
             document.getElementById('jsonOutput').className = "";
             document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
+
+            
         }
 
         // GitHub Pages compatible relative path finder
