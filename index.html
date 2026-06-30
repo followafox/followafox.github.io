@@ -24,7 +24,7 @@
     <pre id="jsonOutput">// JSON data will stream here...</pre>
 
     <div id="formattedOutput">
-        <p>result.Quotation</p>
+        <p id="1"></p>
     </div>
 
     <script>
@@ -130,6 +130,12 @@
         // Trigger file pipeline on initial page load
         document.getElementById('randomizeBtn').addEventListener('click', processRandomRow);
         window.addEventListener('DOMContentLoaded', loadCSVFile);
+
+        // print in div
+        const obj = JSON.parse(result);
+        document.getElementById('1').innerHTML = 
+            obj.name
+        
     </script>
 </body>
 </html>
