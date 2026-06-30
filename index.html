@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Random CSV Row Selector</title>
+    <title>GitHub Pages - Random CSV Selector</title>
     <style>
         body { font-family: sans-serif; margin: 40px; background: #f9f9f9; color: #333; }
         pre { background: #272822; color: #f8f8f2; padding: 20px; border-radius: 6px; overflow-x: auto; }
@@ -15,13 +15,13 @@
 <body>
 
     <h2>Unique Random CSV Row Picker</h2>
-    <p>Loading quotes automatically from <code>todayiam.csv</code> in the same folder.</p>
+    <p>Running directly on GitHub Pages server environments.</p>
     
-    <button id="randomizeBtn" disabled>Loading File...</button>
-    <div id="poolStatus" class="counter">Connecting to file...</div>
+    <button id="randomizeBtn" disabled>Fetching data...</button>
+    <div id="poolStatus" class="counter">Connecting to GitHub file stream...</div>
     
     <h3>Result Output:</h3>
-    <pre id="jsonOutput">// JSON output will appear here...</pre>
+    <pre id="jsonOutput">// JSON data will stream here...</pre>
 
     <script>
         let cachedRows = [];
@@ -34,7 +34,7 @@
             let match;
 
             while ((match = regex.exec(line)) !== null) {
-                const value = match !== undefined ? match : match;
+                const value = match[1] !== undefined ? match[1] : match[2];
                 result.push(value.trim());
             }
             return result;
@@ -48,9 +48,7 @@
                 for (let i = 1; i < cachedRows.length; i++) {
                     availableIndices.push(i);
                 }
-                if (cachedRows.length > 2) {
-                    console.log("All unique rows viewed. Pool reset.");
-                }
+                console.log("All unique rows viewed. Pool reset.");
             }
 
             // 1. Pick a random index coordinate from our remaining index pool
@@ -66,7 +64,7 @@
             document.getElementById('poolStatus').textContent = `Showing row ${rowsViewed} of ${totalDataRows} total unique rows.`;
 
             // 3. Extract headers and the selected target row columns
-            const headers = parseCSVLine(cachedRows);
+            const headers = parseCSVLine(cachedRows[0]);
             const columns = parseCSVLine(cachedRows[targetRowIndex]);
 
             // 4. Map the columns to header properties
@@ -89,13 +87,17 @@
             document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
         }
 
-        // Native API request targeting the file relative to the webpage directory
+        // GitHub Pages compatible relative path finder
         async function loadCSVFile() {
             try {
-                const response = await fetch('todayiam.csv');
+                // Extracts the base path layout to maintain sub-repository structure safely
+                const baseDir = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                const targetUrl = window.location.origin + baseDir + 'todayiam.csv';
+
+                const response = await fetch(targetUrl);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP status error! Status: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const textContent = await response.text();
@@ -115,7 +117,7 @@
                 document.getElementById('poolStatus').textContent = "";
                 const output = document.getElementById('jsonOutput');
                 output.className = "error";
-                output.textContent = `File Load Failed:\n1. Ensure 'todayiam.csv' sits in the exact same directory as this HTML file.\n2. Ensure you are running a local web server.\n\nDetails: ${error.message}`;
+                output.textContent = `GitHub Pages Server Error:\n\nEnsure 'todayiam.csv' is committed in lowercase to the exact same repository folder branch as your 'index.html' file.\n\nDetails: ${error.message}`;
             }
         }
 
