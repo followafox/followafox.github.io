@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Random CSV Row Selector</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background: #f9f9f9; color: #333; }
+        pre { background: #272822; color: #f8f8f2; padding: 20px; border-radius: 6px; overflow-x: auto; }
+        button { padding: 10px 15px; cursor: pointer; background: #0070f3; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0051b3; }
+        .counter { color: #666; font-size: 0.9em; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>Unique Random CSV Row Picker</h2>
+    <p>Select your <code>todayiam.csv</code> file. Rows will not repeat until all have been viewed:</p>
+    
+    <!-- Native HTML5 File Input -->
+    <input type="file" id="csvFileInput" accept=".csv" />
+    <button id="randomizeBtn" style="display:none;">Pick Next Random Row</button>
+    <div id="poolStatus" class="counter"></div>
+    
+    <h3>Result Output:</h3>
+    <pre id="jsonOutput">// JSON output will appear here...</pre>
+
+    <script>
+        let cachedRows = [];
+        let availableIndices = []; // Tracks rows that haven't been picked yet
+
+        // Safe CSV line splitter that handles quotes and commas natively
+        function parseCSVLine(line) {
+            const result = [];
+            const regex = /"([^"]*)"|([^,]+)/g;
+            let match;
+
+            while ((match = regex.exec(line)) !== null) {
+                const value = match[1] !== undefined ? match[1] : match[2];
+                result.push(value.trim());
+            }
+            return result;
+        }
+
+        function processRandomRow() {
+            if (cachedRows.length <= 1) return;
+
+            // If all unique rows have been used, reset the pool
+            if (availableIndices.length === 0) {
+                // Fill array with indices from 1 to total rows (skipping header 0)
+                for (let i = 1; i < cachedRows.length; i++) {
+                    availableIndices.push(i);
+                }
+                alert("All rows have been viewed! Resetting the pool.");
+            }
+
+            // 1. Pick a random index from our remaining pool of indices
+            const poolIndex = Math.floor(Math.random() * availableIndices.length);
+            const targetRowIndex = availableIndices[poolIndex];
+
+            // 2. Remove this row index from the pool so it cannot repeat
+            availableIndices.splice(poolIndex, 1);
+
+            // Update status text on screen
+            const totalDataRows = cachedRows.length - 1;
+            const rowsViewed = totalDataRows - availableIndices.length;
+            document.getElementById('poolStatus').textContent = `Showing row ${rowsViewed} of ${totalDataRows} total unique rows.`;
+
+            // 3. Extract headers and target row columns
+            const headers = parseCSVLine(cachedRows[0]);
+            const columns = parseCSVLine(cachedRows[targetRowIndex]);
+
+            // 4. Map the columns to headers
+            const rowMap = {};
+            headers.forEach((header, index) => {
+                rowMap[header] = columns[index] || "";
+            });
+
+            // 5. Filter for target fields
+            const targetFields = ["Quotation", "Author", "Work", "Notes"];
+            const result = {};
+
+            targetFields.forEach(field => {
+                const exactHeader = headers.find(h => h.toLowerCase() === field.toLowerCase());
+                result[field] = exactHeader ? rowMap[exactHeader] : "";
+            });
+
+            // 6. Pretty-print output
+            document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
+        }
+
+        // Handle native local file input selection
+        document.getElementById('csvFileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const textContent = e.target.result;
+                
+                // Break file into array lines and clear empty items
+                cachedRows = textContent.trim().split(/\r?\n/).filter(line => line.trim() !== "");
+                
+                if (cachedRows.length > 1) {
+                    availableIndices = []; // Reset pool for the new file
+                    document.getElementById('randomizeBtn').style.display = 'inline-block';
+                    processRandomRow();
+                } else {
+                    document.getElementById('jsonOutput').textContent = "Error: CSV must have headers and data rows.";
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+
+        // Setup the re-roll button event listener
+        document.getElementById('randomizeBtn').addEventListener('click', processRandomRow);
+    </script>
+</body>
+</html>
